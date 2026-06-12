@@ -1,0 +1,27 @@
+{
+  "name": "defi-security-saas",
+  "version": "2.0.0",
+  "description": "DeFi 安全快评 SaaS — 链上合约一键安全分析平台",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "generate-codes": "node scripts/generate-codes.js"
+  },
+  "keywords": [
+    "defi",
+    "security",
+    "smart-contract",
+    "audit",
+    "solidity",
+    "crypto"
+  ],
+  "author": "DeFi Security Team",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}

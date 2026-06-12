@@ -1,0 +1,1311 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DeFi 安全快评 — 链上合约一键安全分析 SaaS</title>
+<meta name="description" content="DeFi 合约安全检测 SaaS 平台。输入合约地址，一键检测 17 种漏洞模式，获得综合安全评分。免费版每天5次查询，专业版 $9.9/月无限使用。">
+<style>
+/* ======================== CSS Reset & Variables ======================== */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg-primary:#0a0e1a;
+  --bg-secondary:#111827;
+  --bg-card:#1a1f2e;
+  --bg-input:#0f1322;
+  --border:#2a3045;
+  --text-primary:#e5e7eb;
+  --text-secondary:#9ca3af;
+  --text-muted:#6b7280;
+  --accent:#3b82f6;
+  --accent-hover:#2563eb;
+  --accent-glow:rgba(59,130,246,0.15);
+  --green:#10b981;
+  --yellow:#f59e0b;
+  --orange:#f97316;
+  --red:#ef4444;
+  --radius:12px;
+  --radius-sm:8px;
+  --font-mono:'JetBrains Mono','Fira Code','Cascadia Code',monospace;
+  --transition:0.2s ease;
+}
+body{
+  background:var(--bg-primary);
+  color:var(--text-primary);
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  line-height:1.6;
+  min-height:100vh;
+  -webkit-font-smoothing:antialiased;
+}
+.container{max-width:960px;margin:0 auto;padding:20px 16px}
+
+/* ======================== Header & Nav ======================== */
+header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:16px 0;border-bottom:1px solid var(--border);margin-bottom:24px;
+  flex-wrap:wrap;gap:12px;
+}
+.logo-area{display:flex;align-items:center;gap:12px}
+.logo-icon{
+  width:40px;height:40px;
+  background:linear-gradient(135deg,var(--accent),#6366f1);
+  border-radius:var(--radius-sm);
+  display:flex;align-items:center;justify-content:center;
+  font-size:20px;color:#fff;
+}
+.logo-area h1{font-size:22px;font-weight:700}
+.logo-area .badge{
+  font-size:11px;padding:2px 8px;border-radius:10px;
+  background:rgba(16,185,129,0.15);color:var(--green);
+  font-weight:600;
+}
+nav{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+nav a, nav button{
+  padding:8px 16px;border-radius:var(--radius-sm);
+  font-size:14px;text-decoration:none;cursor:pointer;
+  border:1px solid transparent;background:transparent;
+  color:var(--text-secondary);transition:all var(--transition);
+  font-family:inherit;
+}
+nav a:hover, nav button:hover{color:var(--text-primary);background:rgba(255,255,255,0.05)}
+nav a.active, nav button.active{
+  color:var(--accent);border-color:rgba(59,130,246,0.3);
+  background:rgba(59,130,246,0.08);
+}
+nav .btn-login{
+  background:var(--accent);color:#fff;border:none;
+  font-weight:600;
+}
+nav .btn-login:hover{background:var(--accent-hover)}
+.lang-switch{
+  font-size:13px;cursor:pointer;
+  padding:6px 10px;border-radius:var(--radius-sm);
+  border:1px solid var(--border);background:transparent;
+  color:var(--text-secondary);
+  font-family:inherit;
+}
+.lang-switch:hover{color:var(--text-primary)}
+
+/* ======================== Tab Content ======================== */
+.tab-content{display:none}
+.tab-content.active{display:block}
+
+/* ======================== Search Section ======================== */
+.search-section{
+  background:var(--bg-card);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:24px;margin-bottom:20px;
+}
+.search-section h2{font-size:18px;margin-bottom:16px}
+.search-row{display:flex;gap:12px}
+.search-input-wrapper{flex:1;position:relative}
+.search-input-wrapper input{
+  width:100%;padding:14px 16px;padding-left:44px;
+  background:var(--bg-input);
+  border:1px solid var(--border);
+  border-radius:var(--radius-sm);
+  color:var(--text-primary);
+  font-family:var(--font-mono);font-size:15px;
+  outline:none;
+  transition:border var(--transition),box-shadow var(--transition);
+}
+.search-input-wrapper input::placeholder{color:var(--text-muted)}
+.search-input-wrapper input:focus{
+  border-color:var(--accent);
+  box-shadow:0 0 0 3px var(--accent-glow);
+}
+.search-input-wrapper .input-icon{
+  position:absolute;left:14px;top:50%;transform:translateY(-50%);
+  color:var(--text-muted);font-size:18px;pointer-events:none;
+}
+.btn-analyze{
+  padding:14px 32px;
+  background:linear-gradient(135deg,var(--accent),#6366f1);
+  color:#fff;border:none;border-radius:var(--radius-sm);
+  font-size:15px;font-weight:600;cursor:pointer;
+  transition:all var(--transition);white-space:nowrap;
+}
+.btn-analyze:hover{transform:translateY(-1px);box-shadow:0 0 30px rgba(59,130,246,0.3)}
+.btn-analyze:disabled{opacity:0.5;cursor:not-allowed;transform:none}
+.quick-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.chip{
+  padding:6px 14px;background:rgba(59,130,246,0.08);
+  border:1px solid rgba(59,130,246,0.15);
+  border-radius:20px;color:var(--accent);
+  font-size:13px;font-family:var(--font-mono);cursor:pointer;
+  transition:all var(--transition);
+}
+.chip:hover{background:rgba(59,130,246,0.15)}
+
+.quota-bar{
+  display:flex;align-items:center;gap:10px;margin-top:14px;
+  padding:10px 14px;background:var(--bg-input);
+  border-radius:var(--radius-sm);font-size:13px;color:var(--text-secondary);
+}
+.quota-bar .quota-used{color:var(--accent);font-weight:600}
+.quota-bar .quota-limit{color:var(--text-muted)}
+
+/* ======================== Results ======================== */
+.result-area{display:none}
+.result-area.visible{display:block}
+
+.score-section{
+  background:var(--bg-card);border:1px solid var(--border);
+  border-radius:var(--radius);padding:28px;margin-bottom:20px;text-align:center;
+}
+.score-circle{
+  width:120px;height:120px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  margin:0 auto 16px;position:relative;
+}
+.score-circle::before{
+  content:'';position:absolute;inset:6px;
+  border-radius:50%;border:3px solid currentColor;opacity:0.3;
+}
+.score-value{font-size:40px;font-weight:800;font-family:var(--font-mono)}
+.score-grade{font-size:18px;font-weight:700;margin-top:8px}
+.score-label{color:var(--text-secondary);font-size:13px;margin-top:4px}
+
+.score-a{color:#10b981}.score-b{color:#34d399}.score-c{color:#f59e0b}
+.score-d{color:#f97316}.score-f{color:#ef4444}
+
+.info-grid{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+  gap:12px;margin-bottom:20px;
+}
+.info-item{
+  background:var(--bg-card);border:1px solid var(--border);
+  border-radius:var(--radius-sm);padding:16px;
+  display:flex;align-items:center;gap:12px;
+}
+.info-item .info-icon{font-size:20px}
+.info-item .label{color:var(--text-secondary);font-size:13px}
+.info-item .value{font-weight:600;font-family:var(--font-mono);font-size:14px;margin-top:2px}
+
+.risk-card{
+  background:var(--bg-card);border:1px solid var(--border);
+  border-radius:var(--radius);padding:24px;margin-bottom:20px;
+}
+.risk-card h3{font-size:16px;margin-bottom:16px}
+.risk-stat-row{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:20px}
+.risk-stat{
+  padding:8px 16px;border-radius:var(--radius-sm);
+  font-weight:700;font-size:13px;
+}
+.risk-stat.critical{background:rgba(239,68,68,0.1);color:var(--red)}
+.risk-stat.high{background:rgba(249,115,22,0.1);color:var(--orange)}
+.risk-stat.medium{background:rgba(245,158,11,0.1);color:var(--yellow)}
+.risk-stat.low{background:rgba(16,185,129,0.1);color:var(--green)}
+
+.finding-row{
+  display:flex;align-items:flex-start;gap:14px;
+  padding:12px 0;border-bottom:1px solid var(--border);
+}
+.finding-row:last-child{border-bottom:none}
+.severity-dot{
+  width:10px;height:10px;border-radius:50%;flex-shrink:0;margin-top:5px;
+}
+.severity-dot.critical{background:var(--red);box-shadow:0 0 8px rgba(239,68,68,0.5)}
+.severity-dot.high{background:var(--orange);box-shadow:0 0 8px rgba(249,115,22,0.5)}
+.severity-dot.medium{background:var(--yellow)}
+.severity-dot.low{background:var(--green)}
+.finding-info{flex:1}
+.finding-name{font-weight:600}
+.finding-desc{font-size:13px;color:var(--text-secondary);margin-top:4px}
+.finding-impact{font-size:12px;color:var(--text-muted);margin-top:2px}
+
+.privilege-grid{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
+  gap:10px;margin-bottom:16px;
+}
+.privilege-item{
+  background:var(--bg-input);border-radius:var(--radius-sm);
+  padding:14px;text-align:center;
+}
+.privilege-item .priv-name{font-size:12px;color:var(--text-secondary);margin-bottom:4px}
+.privilege-item .priv-status{font-weight:700;font-size:14px}
+.priv-status.danger{color:var(--red)}
+.priv-status.warn{color:var(--yellow)}
+.priv-status.safe{color:var(--green)}
+
+.rec-list{list-style:none}
+.rec-list li{
+  padding:10px 14px;margin-bottom:8px;
+  background:var(--bg-input);border-radius:var(--radius-sm);
+  font-size:14px;display:flex;align-items:flex-start;gap:8px;
+  border-left:3px solid var(--accent);
+}
+
+/* ======================== Loading & Error ======================== */
+.loading-box{display:none;text-align:center;padding:32px}
+.loading-box.visible{display:block}
+.spinner{
+  width:40px;height:40px;border:3px solid var(--border);
+  border-top-color:var(--accent);border-radius:50%;
+  animation:spin 0.8s linear infinite;margin:0 auto 16px;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.error-box{
+  display:none;background:rgba(239,68,68,0.1);
+  border:1px solid rgba(239,68,68,0.3);
+  border-radius:var(--radius-sm);padding:16px;
+  color:var(--red);font-size:14px;margin-bottom:20px;
+}
+.error-box.visible{display:block}
+
+.success-box{
+  display:none;background:rgba(16,185,129,0.1);
+  border:1px solid rgba(16,185,129,0.3);
+  border-radius:var(--radius-sm);padding:16px;
+  color:var(--green);font-size:14px;margin-bottom:20px;
+}
+.success-box.visible{display:block}
+
+/* ======================== Auth / Account / Pricing Pages ======================== */
+.panel-card{
+  background:var(--bg-card);border:1px solid var(--border);
+  border-radius:var(--radius);padding:28px;margin-bottom:20px;
+}
+.panel-card h2{font-size:20px;margin-bottom:20px}
+.panel-card h3{font-size:16px;margin-bottom:12px;color:var(--text-secondary)}
+
+.form-group{margin-bottom:16px}
+.form-group label{display:block;font-size:14px;color:var(--text-secondary);margin-bottom:6px}
+.form-group input{
+  width:100%;padding:12px 16px;
+  background:var(--bg-input);border:1px solid var(--border);
+  border-radius:var(--radius-sm);color:var(--text-primary);
+  font-size:15px;outline:none;
+  font-family:var(--font-mono);
+}
+.form-group input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow)}
+
+.btn{
+  padding:12px 24px;border-radius:var(--radius-sm);
+  font-size:14px;font-weight:600;cursor:pointer;
+  border:none;transition:all var(--transition);
+  font-family:inherit;
+}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover{background:var(--accent-hover)}
+.btn-secondary{background:rgba(255,255,255,0.05);color:var(--text-primary);border:1px solid var(--border)}
+.btn-secondary:hover{background:rgba(255,255,255,0.1)}
+.btn-danger{background:var(--red);color:#fff}
+.btn-danger:hover{opacity:0.9}
+.btn:disabled{opacity:0.5;cursor:not-allowed}
+
+.api-key-display{
+  background:var(--bg-input);border:1px solid var(--border);
+  border-radius:var(--radius-sm);padding:14px 16px;
+  font-family:var(--font-mono);font-size:14px;color:var(--accent);
+  word-break:break-all;margin-bottom:12px;
+  display:flex;justify-content:space-between;align-items:center;gap:12px;
+}
+.api-key-display .copy-btn{
+  background:var(--accent);color:#fff;border:none;
+  padding:6px 12px;border-radius:4px;cursor:pointer;
+  font-size:12px;white-space:nowrap;font-family:inherit;
+}
+
+.pricing-grid{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+  gap:16px;margin-top:20px;
+}
+.pricing-card{
+  background:var(--bg-input);border:1px solid var(--border);
+  border-radius:var(--radius);padding:24px;text-align:center;
+  transition:border var(--transition);
+}
+.pricing-card:hover{border-color:var(--accent)}
+.pricing-card.featured{border-color:var(--accent);box-shadow:0 0 20px var(--accent-glow)}
+.pricing-card .plan-name{font-size:16px;font-weight:700;margin-bottom:4px}
+.pricing-card .plan-price{font-size:28px;font-weight:800;margin:12px 0;color:var(--accent)}
+.pricing-card .plan-period{font-size:13px;color:var(--text-muted)}
+.pricing-card ul{list-style:none;text-align:left;margin:16px 0}
+.pricing-card ul li{padding:6px 0;font-size:14px;color:var(--text-secondary)}
+.pricing-card ul li::before{content:"✓ ";color:var(--green);font-weight:700}
+.pricing-card .btn{margin-top:12px;width:100%}
+
+.code-input-row{display:flex;gap:12px;margin-top:16px}
+.code-input-row input{flex:1}
+
+.status-bar{
+  padding:10px 16px;border-radius:var(--radius-sm);font-size:14px;margin-top:12px;
+}
+.status-bar.free{background:rgba(59,130,246,0.08);color:var(--accent)}
+.status-bar.pro{background:rgba(16,185,129,0.08);color:var(--green)}
+.status-bar.enterprise{background:rgba(99,102,241,0.08);color:#a78bfa}
+
+/* ======================== Modals ======================== */
+.modal-overlay{
+  display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);
+  z-index:100;align-items:center;justify-content:center;
+}
+.modal-overlay.visible{display:flex}
+.modal{
+  background:var(--bg-card);border:1px solid var(--border);
+  border-radius:var(--radius);padding:32px;width:90%;max-width:440px;
+  max-height:90vh;overflow-y:auto;
+}
+.modal h2{font-size:20px;margin-bottom:20px}
+.modal .close-btn{
+  float:right;background:none;border:none;color:var(--text-secondary);
+  font-size:24px;cursor:pointer;line-height:1;
+}
+.modal .toggle-link{
+  color:var(--accent);cursor:pointer;font-size:14px;
+}
+.modal .toggle-link:hover{text-decoration:underline}
+
+/* ======================== Footer ======================== */
+footer{
+  text-align:center;padding:32px 0;color:var(--text-muted);font-size:13px;
+  border-top:1px solid var(--border);margin-top:32px;
+}
+footer a{color:var(--accent);text-decoration:none}
+
+/* ======================== Responsive ======================== */
+@media(max-width:640px){
+  header{flex-direction:column;align-items:flex-start}
+  nav{width:100%;justify-content:flex-start}
+  .search-row{flex-direction:column}
+  .btn-analyze{text-align:center}
+  .info-grid{grid-template-columns:1fr 1fr}
+  .privilege-grid{grid-template-columns:1fr 1fr}
+  .pricing-grid{grid-template-columns:1fr}
+  .code-input-row{flex-direction:column}
+}
+@media(max-width:400px){
+  .info-grid{grid-template-columns:1fr}
+  .privilege-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+  <!-- ====== Header & Nav ====== -->
+  <header>
+    <div class="logo-area">
+      <div class="logo-icon">&#128737;</div>
+      <h1>DeFi Security Scanner</h1>
+      <span class="badge" data-i18n="beta">SaaS</span>
+    </div>
+    <nav>
+      <a href="#" class="active" data-tab="scan" data-i18n="nav_scan">安全扫描</a>
+      <a href="#" data-tab="account" data-i18n="nav_account">账户</a>
+      <a href="#" data-tab="pricing" data-i18n="nav_pricing">定价</a>
+      <button class="lang-switch" onclick="toggleLang()" id="langBtn">EN</button>
+      <button class="btn-login" id="navLoginBtn" onclick="showModal('login')" data-i18n="nav_login">登录</button>
+    </nav>
+  </header>
+
+  <!-- ====== Tab: 安全扫描 ====== -->
+  <div class="tab-content active" id="tab-scan">
+    <div class="search-section">
+      <h2 data-i18n="scan_title">合约安全分析</h2>
+      <div class="search-row">
+        <div class="search-input-wrapper">
+          <span class="input-icon">&#128269;</span>
+          <input type="text" id="addressInput"
+                 placeholder="输入合约地址 0x..." autocomplete="off" spellcheck="false">
+        </div>
+        <button class="btn-analyze" id="btnAnalyze" onclick="doAnalyze()" data-i18n="scan_btn">开始分析</button>
+      </div>
+      <div class="quick-chips">
+        <span class="chip" onclick="quickScan('0xdAC17F958D2ee523a2206206994597C13D831ec7')">USDT</span>
+        <span class="chip" onclick="quickScan('0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48')">USDC</span>
+        <span class="chip" onclick="quickScan('0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2')">WETH</span>
+        <span class="chip" onclick="quickScan('0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599')">WBTC</span>
+      </div>
+      <div class="quota-bar" id="quotaBar" style="display:none">
+        <span>&#128200;</span>
+        <span data-i18n="quota_label">今日剩余查询：</span>
+        <span class="quota-used" id="quotaRemaining">--</span>
+        <span class="quota-limit" id="quotaLimit">/ 5</span>
+      </div>
+    </div>
+
+    <!-- Loading -->
+    <div class="loading-box" id="loadingBox">
+      <div class="spinner"></div>
+      <p data-i18n="scan_loading">正在分析合约，请稍候...</p>
+    </div>
+
+    <!-- Error -->
+    <div class="error-box" id="errorBox"></div>
+
+    <!-- Result Area -->
+    <div class="result-area" id="resultArea">
+      <!-- Score -->
+      <div class="score-section">
+        <div class="score-circle" id="scoreCircle">
+          <span class="score-value" id="scoreValue">--</span>
+        </div>
+        <div class="score-grade" id="scoreGrade"></div>
+        <div class="score-label" id="scoreLabel"></div>
+      </div>
+
+      <!-- Info -->
+      <div class="info-grid" id="infoGrid"></div>
+
+      <!-- Risks -->
+      <div class="risk-card">
+        <h3 data-i18n="risk_title">风险发现</h3>
+        <div class="risk-stat-row" id="riskStats"></div>
+        <div id="findingsList"></div>
+      </div>
+
+      <!-- Privileges -->
+      <div class="risk-card">
+        <h3 data-i18n="priv_title">所有者权限分析</h3>
+        <div class="privilege-grid" id="privilegeGrid"></div>
+      </div>
+
+      <!-- Recommendations -->
+      <div class="risk-card">
+        <h3 data-i18n="rec_title">安全建议</h3>
+        <ul class="rec-list" id="recList"></ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== Tab: 账户 ====== -->
+  <div class="tab-content" id="tab-account">
+    <!-- 未登录 -->
+    <div class="panel-card" id="accountNotLoggedIn">
+      <h2 data-i18n="acct_title">账户管理</h2>
+      <p style="color:var(--text-secondary);margin-bottom:20px" data-i18n="acct_please_login">请先登录或注册以管理你的 API Key 和订阅。</p>
+      <button class="btn btn-primary" onclick="showModal('login')" data-i18n="acct_login_btn">登录 / 注册</button>
+    </div>
+
+    <!-- 已登录 -->
+    <div class="panel-card" id="accountLoggedIn" style="display:none">
+      <h2 data-i18n="acct_title">账户管理</h2>
+
+      <!-- 当前套餐 -->
+      <div class="status-bar free" id="accountTierBadge">
+        <span data-i18n="acct_tier">当前套餐：</span><strong id="accountTierName">免费版</strong>
+      </div>
+
+      <h3 style="margin-top:20px" data-i18n="acct_email">邮箱</h3>
+      <p style="font-size:16px;margin-bottom:16px" id="accountEmail">--</p>
+
+      <h3 data-i18n="acct_apikey_title">你的 API Key</h3>
+      <div class="api-key-display">
+        <span id="accountApiKey">--</span>
+        <button class="copy-btn" onclick="copyApiKey()" data-i18n="acct_copy">复制</button>
+      </div>
+      <p style="font-size:12px;color:var(--text-muted);margin-bottom:20px" data-i18n="acct_apikey_hint">
+        在代码中设置 Header <code>X-API-Key: your_key</code> 即可接入 API。
+      </p>
+
+      <!-- 订阅码激活 -->
+      <h3 data-i18n="acct_upgrade_title">升级 / 续费</h3>
+      <p style="font-size:14px;color:var(--text-secondary);margin-bottom:12px" data-i18n="acct_upgrade_desc">
+        在 Gumroad 购买订阅后获得激活码，在下方输入即可激活。
+      </p>
+      <div class="code-input-row">
+        <input type="text" id="codeInput" placeholder="输入订阅码，如 PRO-XXXX-XXXX-XXXX" style="flex:1">
+        <button class="btn btn-primary" onclick="redeemCode()" data-i18n="acct_redeem_btn">激活</button>
+      </div>
+      <div class="success-box" id="redeemSuccess"></div>
+      <div class="error-box" id="redeemError"></div>
+
+      <div style="margin-top:24px">
+        <button class="btn btn-secondary" onclick="doLogout()" data-i18n="acct_logout">退出登录</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== Tab: 定价 ====== -->
+  <div class="tab-content" id="tab-pricing">
+    <div class="panel-card">
+      <h2 data-i18n="pricing_title">定价方案</h2>
+      <p style="color:var(--text-secondary);margin-bottom:20px" data-i18n="pricing_subtitle">
+        所有方案均包含 17 种漏洞模式检测、安全评分、权限分析。通过 Gumroad 购买订阅码激活。
+      </p>
+
+      <div class="pricing-grid">
+        <div class="pricing-card">
+          <div class="plan-name" data-i18n="plan_free_name">免费版</div>
+          <div class="plan-price">$0</div>
+          <div class="plan-period" data-i18n="plan_free_period">永久免费</div>
+          <ul>
+            <li data-i18n="plan_free_f1">每天 5 次查询</li>
+            <li data-i18n="plan_free_f2">17 种漏洞检测</li>
+            <li data-i18n="plan_free_f3">综合安全评分</li>
+            <li data-i18n="plan_free_f4">权限分析</li>
+          </ul>
+          <button class="btn btn-secondary" onclick="showModal('register')" data-i18n="plan_free_btn">免费注册</button>
+        </div>
+
+        <div class="pricing-card featured">
+          <div class="plan-name" data-i18n="plan_pro_name">专业版</div>
+          <div class="plan-price">$9.9</div>
+          <div class="plan-period" data-i18n="plan_pro_period">/月</div>
+          <ul>
+            <li data-i18n="plan_pro_f1">无限次查询</li>
+            <li data-i18n="plan_pro_f2">API Key 接入</li>
+            <li data-i18n="plan_pro_f3">Markdown 报告导出</li>
+            <li data-i18n="plan_pro_f4">优先响应</li>
+            <li data-i18n="plan_pro_f5">新币监控（即将推出）</li>
+          </ul>
+          <a href="https://gumroad.com/l/defi-security" target="_blank" class="btn btn-primary" style="display:block;text-decoration:none" data-i18n="plan_pro_btn">Gumroad 购买</a>
+        </div>
+
+        <div class="pricing-card">
+          <div class="plan-name" data-i18n="plan_ent_name">企业版</div>
+          <div class="plan-price">$49</div>
+          <div class="plan-period" data-i18n="plan_ent_period">/月</div>
+          <ul>
+            <li data-i18n="plan_ent_f1">专业版全部功能</li>
+            <li data-i18n="plan_ent_f2">定制检测规则</li>
+            <li data-i18n="plan_ent_f3">白标嵌入</li>
+            <li data-i18n="plan_ent_f4">批量分析（10个/次）</li>
+            <li data-i18n="plan_ent_f5">专属客服支持</li>
+          </ul>
+          <a href="https://gumroad.com/l/defi-security" target="_blank" class="btn btn-secondary" style="display:block;text-decoration:none" data-i18n="plan_ent_btn">Gumroad 购买</a>
+        </div>
+      </div>
+
+      <div style="margin-top:24px;padding:16px;background:var(--bg-input);border-radius:var(--radius-sm);font-size:14px;color:var(--text-secondary)">
+        <strong data-i18n="pricing_payment_title">付款方式：</strong>
+        <span data-i18n="pricing_payment_desc">
+          通过 Gumroad 购买（支持 PayPal），购买后获得激活码，在"账户"页面输入即可激活。无需绑定信用卡。
+        </span>
+      </div>
+    </div>
+
+    <!-- API 使用示例 -->
+    <div class="panel-card">
+      <h2 data-i18n="api_title">API 使用示例</h2>
+      <pre style="background:var(--bg-input);padding:16px;border-radius:var(--radius-sm);overflow-x:auto;font-size:13px;font-family:var(--font-mono);color:var(--text-secondary)">
+<span style="color:var(--text-muted)"># 基础查询</span>
+curl "https://your-domain.com/api/analyze?address=0xdAC17F958D2ee523a2206206994597C13D831ec7" \
+  -H "X-API-Key: dsa_your_api_key"
+
+<span style="color:var(--text-muted)"># Markdown 报告</span>
+curl "https://your-domain.com/api/analyze?address=0xdAC17F958D2ee523a2206206994597C13D831ec7&format=markdown" \
+  -H "X-API-Key: dsa_your_api_key"
+
+<span style="color:var(--text-muted)"># 批量分析（仅企业版）</span>
+curl -X POST "https://your-domain.com/api/analyze/batch" \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: dsa_your_api_key" \
+  -d '{"addresses":["0x...","0x..."]}'
+</pre>
+    </div>
+  </div>
+
+  <!-- ====== Footer ====== -->
+  <footer>
+    <p>DeFi Security Scanner v2.0 | &copy; 2026 | <span data-i18n="footer_disclaimer">自动化安全分析，仅供参考，不构成投资建议</span></p>
+    <p><a href="https://t.me/admin">Telegram</a> | <a href="https://github.com">GitHub</a></p>
+  </footer>
+</div>
+
+<!-- ====== Modal: 登录 / 注册 ====== -->
+<div class="modal-overlay" id="modalAuth">
+  <div class="modal">
+    <button class="close-btn" onclick="hideModal('auth')">&times;</button>
+
+    <!-- 登录表单 -->
+    <div id="authFormLogin">
+      <h2 data-i18n="modal_login_title">登录</h2>
+      <div class="form-group">
+        <label data-i18n="modal_email">邮箱</label>
+        <input type="email" id="loginEmail" placeholder="your@email.com">
+      </div>
+      <div class="form-group">
+        <label data-i18n="modal_password">密码</label>
+        <input type="password" id="loginPassword" placeholder="至少6位">
+      </div>
+      <button class="btn btn-primary" onclick="doLogin()" style="width:100%" data-i18n="modal_login_btn">登录</button>
+      <p style="text-align:center;margin-top:16px;font-size:14px;color:var(--text-secondary)">
+        <span data-i18n="modal_no_account">还没有账户？</span>
+        <span class="toggle-link" onclick="toggleAuthForm('register')" data-i18n="modal_go_register">立即注册</span>
+      </p>
+    </div>
+
+    <!-- 注册表单 -->
+    <div id="authFormRegister" style="display:none">
+      <h2 data-i18n="modal_register_title">注册</h2>
+      <div class="form-group">
+        <label data-i18n="modal_email">邮箱</label>
+        <input type="email" id="regEmail" placeholder="your@email.com">
+      </div>
+      <div class="form-group">
+        <label data-i18n="modal_password">密码</label>
+        <input type="password" id="regPassword" placeholder="至少6位">
+      </div>
+      <div class="form-group">
+        <label data-i18n="modal_confirm_password">确认密码</label>
+        <input type="password" id="regPassword2" placeholder="再次输入密码">
+      </div>
+      <button class="btn btn-primary" onclick="doRegister()" style="width:100%" data-i18n="modal_register_btn">注册</button>
+      <p style="text-align:center;margin-top:16px;font-size:14px;color:var(--text-secondary)">
+        <span data-i18n="modal_has_account">已有账户？</span>
+        <span class="toggle-link" onclick="toggleAuthForm('login')" data-i18n="modal_go_login">去登录</span>
+      </p>
+    </div>
+  </div>
+</div>
+
+<script>
+// ======================== 国际化 (i18n) ========================
+const I18N = {
+  zh: {
+    beta: "SaaS",
+    nav_scan: "安全扫描",
+    nav_account: "账户",
+    nav_pricing: "定价",
+    nav_login: "登录",
+    scan_title: "合约安全分析",
+    scan_btn: "开始分析",
+    scan_loading: "正在分析合约，请稍候...",
+    quota_label: "今日剩余查询：",
+    risk_title: "风险发现",
+    priv_title: "所有者权限分析",
+    rec_title: "安全建议",
+    acct_title: "账户管理",
+    acct_please_login: "请先登录或注册以管理你的 API Key 和订阅。",
+    acct_login_btn: "登录 / 注册",
+    acct_tier: "当前套餐：",
+    acct_email: "邮箱",
+    acct_apikey_title: "你的 API Key",
+    acct_copy: "复制",
+    acct_apikey_hint: "在代码中设置 Header X-API-Key: your_key 即可接入 API。",
+    acct_upgrade_title: "升级 / 续费",
+    acct_upgrade_desc: "在 Gumroad 购买订阅后获得激活码，在下方输入即可激活。",
+    acct_redeem_btn: "激活",
+    acct_logout: "退出登录",
+    pricing_title: "定价方案",
+    pricing_subtitle: "所有方案均包含 17 种漏洞模式检测、安全评分、权限分析。通过 Gumroad 购买订阅码激活。",
+    plan_free_name: "免费版",
+    plan_free_period: "永久免费",
+    plan_free_f1: "每天 5 次查询",
+    plan_free_f2: "17 种漏洞检测",
+    plan_free_f3: "综合安全评分",
+    plan_free_f4: "权限分析",
+    plan_free_btn: "免费注册",
+    plan_pro_name: "专业版",
+    plan_pro_period: "/月",
+    plan_pro_f1: "无限次查询",
+    plan_pro_f2: "API Key 接入",
+    plan_pro_f3: "Markdown 报告导出",
+    plan_pro_f4: "优先响应",
+    plan_pro_f5: "新币监控（即将推出）",
+    plan_pro_btn: "Gumroad 购买",
+    plan_ent_name: "企业版",
+    plan_ent_period: "/月",
+    plan_ent_f1: "专业版全部功能",
+    plan_ent_f2: "定制检测规则",
+    plan_ent_f3: "白标嵌入",
+    plan_ent_f4: "批量分析（10个/次）",
+    plan_ent_f5: "专属客服支持",
+    plan_ent_btn: "Gumroad 购买",
+    pricing_payment_title: "付款方式：",
+    pricing_payment_desc: "通过 Gumroad 购买（支持 PayPal），购买后获得激活码，在\"账户\"页面输入即可激活。无需绑定信用卡。",
+    api_title: "API 使用示例",
+    footer_disclaimer: "自动化安全分析，仅供参考，不构成投资建议",
+    modal_login_title: "登录",
+    modal_register_title: "注册",
+    modal_email: "邮箱",
+    modal_password: "密码",
+    modal_confirm_password: "确认密码",
+    modal_login_btn: "登录",
+    modal_register_btn: "注册",
+    modal_no_account: "还没有账户？",
+    modal_go_register: "立即注册",
+    modal_has_account: "已有账户？",
+    modal_go_login: "去登录",
+  },
+  en: {
+    beta: "SaaS",
+    nav_scan: "Scanner",
+    nav_account: "Account",
+    nav_pricing: "Pricing",
+    nav_login: "Login",
+    scan_title: "Contract Security Analysis",
+    scan_btn: "Analyze",
+    scan_loading: "Analyzing contract, please wait...",
+    quota_label: "Daily queries remaining: ",
+    risk_title: "Risk Findings",
+    priv_title: "Owner Privilege Analysis",
+    rec_title: "Recommendations",
+    acct_title: "Account Management",
+    acct_please_login: "Please login or register to manage your API Key and subscription.",
+    acct_login_btn: "Login / Register",
+    acct_tier: "Current Plan: ",
+    acct_email: "Email",
+    acct_apikey_title: "Your API Key",
+    acct_copy: "Copy",
+    acct_apikey_hint: "Set Header X-API-Key: your_key in your code to access the API.",
+    acct_upgrade_title: "Upgrade / Renew",
+    acct_upgrade_desc: "Purchase a subscription on Gumroad to get an activation code, then enter it below.",
+    acct_redeem_btn: "Activate",
+    acct_logout: "Logout",
+    pricing_title: "Pricing Plans",
+    pricing_subtitle: "All plans include 17 vulnerability patterns, security scoring, and privilege analysis. Activate via Gumroad subscription codes.",
+    plan_free_name: "Free",
+    plan_free_period: "Free forever",
+    plan_free_f1: "5 queries per day",
+    plan_free_f2: "17 vulnerability patterns",
+    plan_free_f3: "Security score",
+    plan_free_f4: "Privilege analysis",
+    plan_free_btn: "Sign Up Free",
+    plan_pro_name: "Pro",
+    plan_pro_period: "/month",
+    plan_pro_f1: "Unlimited queries",
+    plan_pro_f2: "API Key access",
+    plan_pro_f3: "Markdown report export",
+    plan_pro_f4: "Priority response",
+    plan_pro_f5: "New token monitor (soon)",
+    plan_pro_btn: "Buy on Gumroad",
+    plan_ent_name: "Enterprise",
+    plan_ent_period: "/month",
+    plan_ent_f1: "All Pro features",
+    plan_ent_f2: "Custom detection rules",
+    plan_ent_f3: "White-label embedding",
+    plan_ent_f4: "Batch analysis (10/req)",
+    plan_ent_f5: "Dedicated support",
+    plan_ent_btn: "Buy on Gumroad",
+    pricing_payment_title: "Payment: ",
+    pricing_payment_desc: "Purchase on Gumroad (supports PayPal). After purchase, enter the activation code on the Account page. No credit card required.",
+    api_title: "API Usage Examples",
+    footer_disclaimer: "Automated security analysis, for reference only, not investment advice",
+    modal_login_title: "Login",
+    modal_register_title: "Register",
+    modal_email: "Email",
+    modal_password: "Password",
+    modal_confirm_password: "Confirm Password",
+    modal_login_btn: "Login",
+    modal_register_btn: "Register",
+    modal_no_account: "Don't have an account?",
+    modal_go_register: "Sign Up",
+    modal_has_account: "Already have an account?",
+    modal_go_login: "Login",
+  }
+};
+
+let currentLang = localStorage.getItem("defi_saas_lang") || "zh";
+
+function t(key) {
+  return (I18N[currentLang] && I18N[currentLang][key]) || (I18N.en[key]) || key;
+}
+
+function toggleLang() {
+  currentLang = currentLang === "zh" ? "en" : "zh";
+  localStorage.setItem("defi_saas_lang", currentLang);
+  document.getElementById("langBtn").textContent = currentLang === "zh" ? "EN" : "中";
+  applyI18n();
+}
+
+function applyI18n() {
+  document.querySelectorAll("[data-i18n]").forEach(el => {
+    const key = el.getAttribute("data-i18n");
+    if (el.tagName === "INPUT" && el.type === "submit") {
+      el.value = t(key);
+    } else if (el.tagName === "INPUT" || el.tagName === "TEXTAREA") {
+      // skip placeholder binds for now
+    } else {
+      el.textContent = t(key);
+    }
+  });
+}
+
+// ======================== 配置 ========================
+const API_BASE = window.location.origin;
+const USE_MOCK = false; // 生产环境使用真实 API
+
+// Token 管理
+function getToken() { return localStorage.getItem("defi_saas_token"); }
+function setToken(t) { localStorage.setItem("defi_saas_token", t); }
+function clearToken() { localStorage.removeItem("defi_saas_token"); }
+function getUser() {
+  try {
+    const raw = localStorage.getItem("defi_saas_user");
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+function setUser(u) { localStorage.setItem("defi_saas_user", JSON.stringify(u)); }
+function clearUser() { localStorage.removeItem("defi_saas_user"); }
+
+// ======================== 标签切换 ========================
+document.querySelectorAll("nav a[data-tab]").forEach(link => {
+  link.addEventListener("click", (e) => {
+    e.preventDefault();
+    switchTab(link.getAttribute("data-tab"));
+  });
+});
+
+function switchTab(name) {
+  document.querySelectorAll(".tab-content").forEach(t => t.classList.remove("active"));
+  document.querySelectorAll("nav a[data-tab]").forEach(a => a.classList.remove("active"));
+
+  const tab = document.getElementById("tab-" + name);
+  if (tab) tab.classList.add("active");
+  const navLink = document.querySelector(`nav a[data-tab="${name}"]`);
+  if (navLink) navLink.classList.add("active");
+
+  // 切换到账户时检查登录状态
+  if (name === "account") refreshAccountUI();
+  if (name === "scan") refreshQuotaUI();
+}
+
+// ======================== Modal ========================
+function showModal(type) {
+  const modal = document.getElementById("modalAuth");
+  modal.classList.add("visible");
+  if (type === "login") {
+    document.getElementById("authFormLogin").style.display = "block";
+    document.getElementById("authFormRegister").style.display = "none";
+  } else {
+    document.getElementById("authFormLogin").style.display = "none";
+    document.getElementById("authFormRegister").style.display = "block";
+  }
+  // 清空表单
+  document.querySelectorAll("#modalAuth input[type=email], #modalAuth input[type=password]").forEach(i => i.value = "");
+  document.getElementById("redeemSuccess").classList.remove("visible");
+  document.getElementById("redeemError").classList.remove("visible");
+}
+
+function hideModal(type) {
+  document.getElementById("modalAuth").classList.remove("visible");
+}
+
+function toggleAuthForm(form) {
+  if (form === "login") {
+    document.getElementById("authFormLogin").style.display = "block";
+    document.getElementById("authFormRegister").style.display = "none";
+  } else {
+    document.getElementById("authFormLogin").style.display = "none";
+    document.getElementById("authFormRegister").style.display = "block";
+  }
+}
+
+// 点击覆盖层关闭
+document.getElementById("modalAuth").addEventListener("click", function(e) {
+  if (e.target === this) hideModal("auth");
+});
+
+// ======================== 认证操作 ========================
+
+async function doRegister() {
+  const email = document.getElementById("regEmail").value.trim();
+  const password = document.getElementById("regPassword").value;
+  const password2 = document.getElementById("regPassword2").value;
+
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    alert(t("modal_email") + " 格式不正确");
+    return;
+  }
+  if (password.length < 6) {
+    alert(t("modal_password") + " 至少6位");
+    return;
+  }
+  if (password !== password2) {
+    alert("两次密码不一致");
+    return;
+  }
+
+  try {
+    const resp = await fetch(API_BASE + "/api/auth/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || "注册失败");
+
+    // 自动登录
+    setUser(data.user);
+    hideModal("auth");
+    refreshAccountUI();
+    refreshQuotaUI();
+    switchTab("account");
+    alert("注册成功！你的 API Key 已生成，请在账户页面查看。");
+  } catch (e) {
+    alert("注册失败：" + e.message);
+  }
+}
+
+async function doLogin() {
+  const email = document.getElementById("loginEmail").value.trim();
+  const password = document.getElementById("loginPassword").value;
+
+  if (!email || !password) {
+    alert("请输入邮箱和密码");
+    return;
+  }
+
+  try {
+    const resp = await fetch(API_BASE + "/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || "登录失败");
+
+    setUser(data.user);
+    hideModal("auth");
+    refreshAccountUI();
+    refreshQuotaUI();
+    document.getElementById("navLoginBtn").textContent = data.user.email.split("@")[0];
+    document.getElementById("navLoginBtn").classList.remove("btn-login");
+    document.getElementById("navLoginBtn").style.background = "transparent";
+    document.getElementById("navLoginBtn").style.color = "var(--text-secondary)";
+  } catch (e) {
+    alert("登录失败：" + e.message);
+  }
+}
+
+function doLogout() {
+  clearUser();
+  clearToken();
+  document.getElementById("navLoginBtn").textContent = t("nav_login");
+  document.getElementById("navLoginBtn").classList.add("btn-login");
+  document.getElementById("navLoginBtn").style.background = "";
+  document.getElementById("navLoginBtn").style.color = "";
+  refreshAccountUI();
+  refreshQuotaUI();
+  switchTab("scan");
+}
+
+function refreshAccountUI() {
+  const user = getUser();
+  const notLoggedIn = document.getElementById("accountNotLoggedIn");
+  const loggedIn = document.getElementById("accountLoggedIn");
+
+  if (!user) {
+    if (notLoggedIn) notLoggedIn.style.display = "block";
+    if (loggedIn) loggedIn.style.display = "none";
+    return;
+  }
+
+  if (notLoggedIn) notLoggedIn.style.display = "none";
+  if (loggedIn) loggedIn.style.display = "block";
+
+  document.getElementById("accountEmail").textContent = user.email;
+  document.getElementById("accountApiKey").textContent = user.apiKey;
+
+  const tierName = document.getElementById("accountTierName");
+  const tierBadge = document.getElementById("accountTierBadge");
+  if (user.tier === "free") {
+    tierName.textContent = "免费版";
+    tierBadge.className = "status-bar free";
+  } else if (user.tier === "pro") {
+    tierName.textContent = "专业版";
+    tierBadge.className = "status-bar pro";
+  } else {
+    tierName.textContent = "企业版";
+    tierBadge.className = "status-bar enterprise";
+  }
+}
+
+async function refreshQuotaUI() {
+  const user = getUser();
+  const quotaBar = document.getElementById("quotaBar");
+
+  if (!user) {
+    quotaBar.style.display = "none";
+    return;
+  }
+
+  try {
+    const resp = await fetch(API_BASE + "/api/user/quota", {
+      headers: { "X-API-Key": user.apiKey },
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error);
+
+    quotaBar.style.display = "flex";
+    if (data.limit === Infinity || data.limit > 10000) {
+      document.getElementById("quotaRemaining").textContent = "无限";
+      document.getElementById("quotaLimit").textContent = "（付费用户）";
+    } else {
+      document.getElementById("quotaRemaining").textContent = data.remaining;
+      document.getElementById("quotaLimit").textContent = "/ " + data.limit;
+    }
+  } catch {
+    quotaBar.style.display = "none";
+  }
+}
+
+async function redeemCode() {
+  const user = getUser();
+  if (!user) { alert("请先登录"); return; }
+
+  const code = document.getElementById("codeInput").value.trim();
+  if (!code) { alert("请输入订阅码"); return; }
+
+  const successBox = document.getElementById("redeemSuccess");
+  const errorBox = document.getElementById("redeemError");
+  successBox.classList.remove("visible");
+  errorBox.classList.remove("visible");
+
+  try {
+    const resp = await fetch(API_BASE + "/api/user/upgrade", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-API-Key": user.apiKey },
+      body: JSON.stringify({ code }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || "兑换失败");
+
+    // 更新本地用户信息
+    const updatedUser = { ...user, tier: data.tier, subscriptionExpiry: data.subscriptionExpiry };
+    setUser(updatedUser);
+
+    successBox.textContent = "激活成功！你已升级到 " + (data.tier === "pro" ? "专业版" : "企业版") + "，有效期至 " + new Date(data.subscriptionExpiry).toLocaleDateString("zh-CN");
+    successBox.classList.add("visible");
+    document.getElementById("codeInput").value = "";
+    refreshAccountUI();
+    refreshQuotaUI();
+  } catch (e) {
+    errorBox.textContent = "激活失败：" + e.message;
+    errorBox.classList.add("visible");
+  }
+}
+
+function copyApiKey() {
+  const key = document.getElementById("accountApiKey").textContent;
+  if (!key || key === "--") return;
+  navigator.clipboard.writeText(key).then(() => {
+    alert("API Key 已复制到剪贴板");
+  }).catch(() => {
+    // fallback
+    const ta = document.createElement("textarea");
+    ta.value = key;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand("copy");
+    document.body.removeChild(ta);
+    alert("API Key 已复制");
+  });
+}
+
+// ======================== 合约分析 ========================
+
+async function doAnalyze() {
+  const input = document.getElementById("addressInput").value.trim();
+
+  if (!input) {
+    showError("请输入合约地址");
+    return;
+  }
+  if (!/^0x[a-fA-F0-9]{40}$/.test(input)) {
+    showError("无效的合约地址格式（应为 0x + 40 位十六进制）");
+    return;
+  }
+
+  hideError();
+  hideResult();
+  showLoading();
+
+  try {
+    const user = getUser();
+    const headers = {};
+    if (user && user.apiKey) {
+      headers["X-API-Key"] = user.apiKey;
+    }
+
+    const resp = await fetch(API_BASE + "/api/analyze?address=" + encodeURIComponent(input), { headers });
+    const data = await resp.json();
+
+    if (!resp.ok) {
+      if (resp.status === 429 && data.upgradeUrl) {
+        throw new Error(data.error + ' <a href="' + data.upgradeUrl + '" style="color:var(--accent)">升级付费版</a>');
+      }
+      throw new Error(data.error || "分析失败");
+    }
+
+    hideLoading();
+    renderResult(data);
+    refreshQuotaUI();
+  } catch (e) {
+    hideLoading();
+    showError(e.message);
+  }
+}
+
+function quickScan(addr) {
+  document.getElementById("addressInput").value = addr;
+  doAnalyze();
+}
+
+// ======================== 显示/隐藏 ========================
+
+function showLoading() {
+  document.getElementById("loadingBox").classList.add("visible");
+}
+
+function hideLoading() {
+  document.getElementById("loadingBox").classList.remove("visible");
+}
+
+function showError(msg) {
+  const box = document.getElementById("errorBox");
+  box.innerHTML = msg;
+  box.classList.add("visible");
+}
+
+function hideError() {
+  document.getElementById("errorBox").classList.remove("visible");
+}
+
+function hideResult() {
+  document.getElementById("resultArea").classList.remove("visible");
+}
+
+// ======================== 渲染结果 ========================
+
+function renderResult(report) {
+  if (report.error) {
+    showError(report.error);
+    return;
+  }
+
+  const { contract, score, risks, owner_privileges, recommendations, meta } = report;
+  document.getElementById("resultArea").classList.add("visible");
+
+  // --- 评分 ---
+  const scoreValue = document.getElementById("scoreValue");
+  const scoreGrade = document.getElementById("scoreGrade");
+  const scoreLabel = document.getElementById("scoreLabel");
+  const scoreCircle = document.getElementById("scoreCircle");
+
+  scoreValue.textContent = score.value;
+
+  let gradeClass;
+  if (score.value >= 80) gradeClass = "score-a";
+  else if (score.value >= 70) gradeClass = "score-b";
+  else if (score.value >= 60) gradeClass = "score-c";
+  else if (score.value >= 40) gradeClass = "score-d";
+  else gradeClass = "score-f";
+
+  scoreCircle.className = "score-circle " + gradeClass;
+  scoreGrade.className = "score-grade " + gradeClass;
+  scoreGrade.textContent = (currentLang === "zh" ? "等级：" : "Grade: ") + score.grade;
+  scoreLabel.textContent = (currentLang === "zh" ? "综合安全评分" : "Security Score") +
+    " | " + (currentLang === "zh" ? "耗时 " : "Elapsed ") + (meta ? meta.elapsedSeconds + "s" : "N/A");
+
+  // --- 基本信息 ---
+  const infoGrid = document.getElementById("infoGrid");
+  const items = [
+    { icon: "&#128210;", label: currentLang === "zh" ? "合约名称" : "Name", value: (contract && contract.name) || "未知" },
+    { icon: "&#9989;", label: currentLang === "zh" ? "已验证" : "Verified", value: (contract && contract.verified) ? (currentLang === "zh" ? "是" : "Yes") : (currentLang === "zh" ? "否" : "No") },
+    { icon: "&#128736;", label: currentLang === "zh" ? "编译器" : "Compiler", value: (contract && contract.compilerVersion) || "未知" },
+    { icon: (owner_privileges && owner_privileges.ownerIsRenounced) ? "&#128994;" : "&#128993;", label: currentLang === "zh" ? "所有者" : "Owner", value: (owner_privileges && owner_privileges.ownerIsRenounced) ? (currentLang === "zh" ? "已放弃" : "Renounced") : (currentLang === "zh" ? "未放弃" : "Active") },
+  ];
+  infoGrid.innerHTML = items.map(i =>
+    `<div class="info-item">
+      <span class="info-icon">${i.icon}</span>
+      <div class="info-text">
+        <div class="label">${i.label}</div>
+        <div class="value">${i.value}</div>
+      </div>
+    </div>`
+  ).join("");
+
+  // --- 风险统计 ---
+  const riskStats = document.getElementById("riskStats");
+  const severities = ["critical", "high", "medium", "low"];
+  if (risks) {
+    riskStats.innerHTML = severities
+      .filter(s => risks[s] > 0)
+      .map(s => `<span class="risk-stat ${s}">${risks[s]} ${s.toUpperCase()}</span>`)
+      .join("") || `<span style="color:var(--green);font-size:14px">${currentLang === "zh" ? "无风险" : "No risks found"}</span>`;
+  }
+
+  // --- 漏洞列表 ---
+  const findingsList = document.getElementById("findingsList");
+  if (risks && risks.findings && risks.findings.length > 0) {
+    findingsList.innerHTML = risks.findings.map(f =>
+      `<div class="finding-row">
+        <span class="severity-dot ${f.severity}"></span>
+        <div class="finding-info">
+          <div class="finding-name">${f.name}</div>
+          <div class="finding-desc">${f.desc}</div>
+          <div class="finding-impact">${currentLang === "zh" ? "评分影响：" : "Score impact: "}${f.score_impact} ${currentLang === "zh" ? "分" : ""}</div>
+        </div>
+      </div>`
+    ).join("");
+  } else {
+    findingsList.innerHTML = `<p style="color:var(--green);padding:12px 0">${currentLang === "zh" ? "未发现已知漏洞模式" : "No known vulnerability patterns found"}</p>`;
+  }
+
+  // --- 所有者权限 ---
+  if (owner_privileges) {
+    const privItems = [
+      { name: currentLang === "zh" ? "Mint（增发）" : "Mint", key: "canMint", danger: true },
+      { name: currentLang === "zh" ? "Pause（暂停）" : "Pause", key: "canPause", danger: true },
+      { name: currentLang === "zh" ? "Blacklist（黑名单）" : "Blacklist", key: "canBlacklist", danger: true },
+      { name: currentLang === "zh" ? "Withdraw（提款）" : "Withdraw", key: "canWithdraw", danger: true },
+      { name: currentLang === "zh" ? "Fee Change（改费率）" : "Fee Change", key: "canChangeFee", danger: true },
+      { name: currentLang === "zh" ? "Upgrade（升级）" : "Upgrade", key: "canUpgrade", danger: true },
+      { name: currentLang === "zh" ? "时间锁" : "Time Lock", key: "hasTimelock", invert: true },
+      { name: currentLang === "zh" ? "放弃权限" : "Renounced", key: "ownerIsRenounced" },
+    ];
+    document.getElementById("privilegeGrid").innerHTML = privItems.map(p => {
+      const val = owner_privileges[p.key];
+      let cls, label;
+      if (p.danger) {
+        cls = val ? "danger" : "safe";
+        label = val ? (currentLang === "zh" ? "是" : "Yes") + " &#9888;" : (currentLang === "zh" ? "否" : "No") + " &#9989;";
+      } else if (p.invert) {
+        cls = val ? "safe" : "warn";
+        label = val ? (currentLang === "zh" ? "有" : "Yes") + " &#9989;" : (currentLang === "zh" ? "无" : "No") + " &#9888;";
+      } else {
+        cls = val ? "safe" : "warn";
+        label = val ? (currentLang === "zh" ? "已放弃" : "Yes") + " &#9989;" : (currentLang === "zh" ? "未放弃" : "No") + " &#9888;";
+      }
+      return `<div class="privilege-item">
+        <div class="priv-name">${p.name}</div>
+        <div class="priv-status ${cls}">${label}</div>
+      </div>`;
+    }).join("");
+  }
+
+  // --- 建议 ---
+  if (recommendations && recommendations.length > 0) {
+    document.getElementById("recList").innerHTML = recommendations.map(r => `<li>${r}</li>`).join("");
+  } else {
+    document.getElementById("recList").innerHTML = `<li>${currentLang === "zh" ? "合约整体安全性较好，建议做好仓位管理" : "Contract appears safe overall, practice good position management"}</li>`;
+  }
+
+  document.getElementById("resultArea").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+// ======================== 初始化 ========================
+
+document.addEventListener("DOMContentLoaded", () => {
+  // 应用语言
+  document.getElementById("langBtn").textContent = currentLang === "zh" ? "EN" : "中";
+  applyI18n();
+
+  // 回车键触发分析
+  document.getElementById("addressInput").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") doAnalyze();
+  });
+
+  // 回车键触发登录
+  document.getElementById("loginPassword").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") doLogin();
+  });
+
+  // 检查登录状态
+  const user = getUser();
+  if (user) {
+    document.getElementById("navLoginBtn").textContent = user.email.split("@")[0];
+    refreshQuotaUI();
+  }
+});
+</script>
+
+</body>
+</html>
